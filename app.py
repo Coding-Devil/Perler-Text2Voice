@@ -40,7 +40,7 @@ examples = [
 
 
 @spaces.GPU
-def gen_tts(text, description):
+def gen_tts(text, description, progress=gr.Progress(track_tqdm=True)):
     inputs = tokenizer(description, return_tensors="pt").to(device)
     prompt = tokenizer(text, return_tensors="pt").to(device)
 

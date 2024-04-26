@@ -1,6 +1,10 @@
 import spaces
 import gradio as gr
 import torch
+from transformers.models.speecht5.number_normalizer import EnglishNumberNormalizer
+from string import punctuation
+import re
+
 
 from parler_tts import ParlerTTSForConditionalGeneration
 from transformers import AutoTokenizer, AutoFeatureExtractor, set_seed
@@ -38,11 +42,31 @@ examples = [
     ],
 ]
 
+number_normalizer = EnglishNumberNormalizer()
 
-@spaces.GPU
+def preprocess(text):
+    text = number_normalizer(text).strip()
+    text = text.replace("-", " ")
+    if text[-1] not in punctuation:
+        text = f"{text}."
+    
+    abbreviations_pattern = r'\b[A-Z][A-Z\.]+\b'
+    
+    def separate_abb(chunk):
+        chunk = chunk.replace(".","")
+        print(chunk)
+        return " ".join(chunk)
+    
+    abbreviations = re.findall(abbreviations_pattern, text)
+    for abv in abbreviations:
+        if abv in text:
+            text = text.replace(abv, separate_abb(abv))
+    return text
+
+
 def gen_tts(text, description):
     inputs = tokenizer(description, return_tensors="pt").to(device)
-    prompt = tokenizer(text, return_tensors="pt").to(device)
+    prompt = tokenizer(preprocess(text), return_tensors="pt").to(device)
 
     set_seed(SEED)
     generation = model.generate(
@@ -140,7 +164,7 @@ with gr.Blocks(css=css) as block:
         and torch compile, that will improve the latency by 2-4x. If you want to find out more about how this model was trained and even fine-tune it yourself, check-out the 
         <a href="https://github.com/huggingface/parler-tts"> Parler-TTS</a> repository on GitHub.</p>
         
-        <p>The Parler-TTS codebase and its associated checkpoints are licensed under <a href='https://github.com/huggingface/parler-tts?tab=Apache-2.0-1-ov-file#readme'> Apache 2.0</a>.</p>
+        <p>The Parler-TTS codebase and its associated checkpoints are licensed under <a href='https://github.com/huggingface/parler-tts?tab=Apache-2.0-1-ov-file#readme'> Apache 2.0</a></p>.
         """
     )
 
